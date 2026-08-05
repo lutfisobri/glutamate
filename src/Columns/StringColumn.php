@@ -9,11 +9,11 @@ use Illuminate\Database\Schema\Blueprint;
 /**
  * @extends Column<string>
  */
-class StringColumn extends Column
+final class StringColumn extends Column
 {
     public static function make(?string $name = null): static
     {
-        return new static($name);
+        return new self($name);
     }
 
     protected ?int $maxLength = null;

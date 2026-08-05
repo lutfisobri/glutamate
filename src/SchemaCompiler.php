@@ -6,7 +6,6 @@ namespace Glutamate;
 
 use Glutamate\Columns\Column;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 use LogicException;
 use ReflectionClass;
@@ -65,7 +64,10 @@ final class SchemaCompiler
             }
 
             if ($column instanceof Column && $column->getName() === null) {
-                $column->as(self::snake($method->getName()));
+                throw new LogicException(
+                    "Column defined in {$modelClass}::{$method->getName()}() must have an explicit name. "
+                    .'Use ->as(__FUNCTION__) or pass the name to make().',
+                );
             }
 
             foreach ($column->getColumns() as $colName => $singleColumn) {
@@ -81,10 +83,5 @@ final class SchemaCompiler
         }
 
         return $columns;
-    }
-
-    private static function snake(string $value): string
-    {
-        return Str::snake($value);
     }
 }

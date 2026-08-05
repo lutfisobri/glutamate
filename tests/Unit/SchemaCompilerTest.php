@@ -9,19 +9,19 @@ use Illuminate\Database\Eloquent\Model;
 
 class TestValidModel extends Model
 {
-    public static function id()
+    public static function id(): IntColumn
     {
-        return IntColumn::make()->unsigned()->autoIncrement();
+        return IntColumn::make()->unsigned()->autoIncrement()->as(__FUNCTION__);
     }
 
     public static function email(): StringColumn
     {
-        return StringColumn::make()->maxLength(191)->unique();
+        return StringColumn::make()->maxLength(191)->unique()->as(__FUNCTION__);
     }
 
     public static function age(): IntColumn
     {
-        return IntColumn::make()->unsigned()->nullable();
+        return IntColumn::make()->unsigned()->nullable()->as(__FUNCTION__);
     }
 
     public static function someHelper(): string
@@ -42,7 +42,7 @@ class TestDuplicateNameModel extends Model
 {
     public static function email(): StringColumn
     {
-        return StringColumn::make();
+        return StringColumn::make()->as(__FUNCTION__);
     }
 
     public static function emailAddress(): StringColumn
@@ -91,4 +91,18 @@ it('throws LogicException when compiling duplicate column names', function () {
     expect(function () {
         SchemaCompiler::compile(TestDuplicateNameModel::class);
     })->toThrow(LogicException::class, "Duplicate column name 'email' resolved");
+});
+
+class TestUnnamedColumnModel extends Model
+{
+    public static function email(): StringColumn
+    {
+        return StringColumn::make();
+    }
+}
+
+it('throws LogicException when compiling a column without explicit name', function () {
+    expect(function () {
+        SchemaCompiler::compile(TestUnnamedColumnModel::class);
+    })->toThrow(LogicException::class, 'must have an explicit name');
 });

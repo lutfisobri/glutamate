@@ -15,12 +15,12 @@ class SnapshotTestModel extends Model
 
     public static function title(): StringColumn
     {
-        return StringColumn::make()->maxLength(200);
+        return StringColumn::make()->maxLength(200)->as(__FUNCTION__);
     }
 
     public static function views(): IntColumn
     {
-        return IntColumn::make()->unsigned()->default(0);
+        return IntColumn::make()->unsigned()->default(0)->as(__FUNCTION__);
     }
 }
 

@@ -61,7 +61,7 @@ final class DateTimeColumn extends Column
 
     public function phpType(): string
     {
-        return $this->nullable ? '?\Carbon\Carbon' : '\Carbon\Carbon';
+        return $this->nullable ? '?\Illuminate\Support\Carbon' : '\Illuminate\Support\Carbon';
     }
 
     /**

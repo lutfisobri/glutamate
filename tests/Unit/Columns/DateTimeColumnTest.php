@@ -32,8 +32,8 @@ it('applies useCurrent default value', function () {
 
 it('returns correct phpType', function () {
     $dateTime = DateTimeColumn::make('test');
-    expect($dateTime->phpType())->toBe('\Carbon\Carbon');
+    expect($dateTime->phpType())->toBe('\Illuminate\Support\Carbon');
 
     $nullableDateTime = DateTimeColumn::make('test')->nullable();
-    expect($nullableDateTime->phpType())->toBe('?\Carbon\Carbon');
+    expect($nullableDateTime->phpType())->toBe('?\Illuminate\Support\Carbon');
 });

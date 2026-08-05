@@ -18,13 +18,13 @@ final class EnumColumn extends Column
     /**
      * @param  array<int, string>  $values
      */
-    public static function make(array $values): static
+    public static function make(array $values, ?string $name = null): static
     {
         if (empty($values)) {
             throw new InvalidArgumentException('EnumColumn requires at least one value.');
         }
 
-        $instance = new self;
+        $instance = new self($name);
         $instance->values = $values;
 
         return $instance;

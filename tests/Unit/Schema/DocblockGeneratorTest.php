@@ -7,9 +7,21 @@ namespace Glutamate\Tests\Unit\Schema;
 use Glutamate\Schema\DocblockGenerator;
 use Glutamate\SchemaCompiler;
 
-it('updates docblocks on models correctly', function () {
+$tempFiles = [];
+
+afterEach(function () use (&$tempFiles) {
+    foreach ($tempFiles as $file) {
+        if (file_exists($file)) {
+            unlink($file);
+        }
+    }
+    $tempFiles = [];
+});
+
+it('updates docblocks on models correctly', function () use (&$tempFiles) {
     $className = 'TempModelForDocblockTest_'.uniqid();
     $tempFile = sys_get_temp_dir().'/'.$className.'.php';
+    $tempFiles[] = $tempFile;
 
     $code = "<?php
 
@@ -58,6 +70,7 @@ use Glutamate\\Columns\\StringColumn;
  * Some existing description.
  *
  * @property string \$old_prop
+ * @property \App\Models\Comment[] \$comments
  */
 class {$className}Doc extends Model
 {
@@ -74,18 +87,20 @@ class {$className}Doc extends Model
 ";
     $classNameDoc = $className.'Doc';
     $tempFileDoc = sys_get_temp_dir().'/'.$classNameDoc.'.php';
+    $tempFiles[] = $tempFileDoc;
     file_put_contents($tempFileDoc, $codeWithDoc);
     require_once $tempFileDoc;
 
     $fqcnDoc = "Glutamate\\Tests\\Unit\\Schema\\{$classNameDoc}";
     $columnsDoc = SchemaCompiler::compile($fqcnDoc);
-    DocblockGenerator::update($fqcnDoc, $columnsDoc);
+    DocblockGenerator::update($fqcnDoc, $columnsDoc, ['old_prop']);
 
     $newContentDoc = file_get_contents($tempFileDoc);
 
     expect($newContentDoc)->toContain('Some existing description.');
     expect($newContentDoc)->toContain('* @property int $id');
     expect($newContentDoc)->toContain('* @property string $name');
+    expect($newContentDoc)->toContain('* @property \App\Models\Comment[] $comments');
     expect($newContentDoc)->not->toContain('@property string $old_prop');
 
     // Test with PHP 8 attributes but no docblock
@@ -113,6 +128,7 @@ class {$className}Attr extends Model
 ";
     $classNameAttr = $className.'Attr';
     $tempFileAttr = sys_get_temp_dir().'/'.$classNameAttr.'.php';
+    $tempFiles[] = $tempFileAttr;
     file_put_contents($tempFileAttr, $codeWithAttr);
     require_once $tempFileAttr;
 
@@ -133,9 +149,4 @@ class {$className}Attr extends Model
 
     expect($docblockPos)->toBeLessThan($attrPos);
     expect($attrPos)->toBeLessThan($classPos);
-
-    // Cleanup
-    unlink($tempFile);
-    unlink($tempFileDoc);
-    unlink($tempFileAttr);
 });

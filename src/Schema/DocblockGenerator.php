@@ -6,14 +6,16 @@ namespace Glutamate\Schema;
 
 use Glutamate\Columns\Column;
 use ReflectionClass;
+use RuntimeException;
 
 final class DocblockGenerator
 {
     /**
      * @param  class-string  $modelClass
      * @param  array<string, Column<mixed>>  $columns
+     * @param  string[]  $previousColumnNames
      */
-    public static function update(string $modelClass, array $columns): void
+    public static function update(string $modelClass, array $columns, array $previousColumnNames = []): void
     {
         $ref = new ReflectionClass($modelClass);
         $filePath = $ref->getFileName();
@@ -36,16 +38,25 @@ final class DocblockGenerator
             $propertyLines[] = " * @property {$phpType} \${$name}";
         }
 
+        $lineEnding = str_contains($content, "\r\n") ? "\r\n" : "\n";
+
         if ($docComment !== false) {
             $lines = preg_split('/\r\n|\r|\n/', $docComment);
 
             if ($lines === false) {
                 return;
             }
+
+            $columnsToReplace = array_unique(array_merge(array_keys($columns), $previousColumnNames));
+
             $newLines = [];
             foreach ($lines as $line) {
-                if (str_contains($line, '@property')) {
-                    continue;
+                if (preg_match('/@property\s+(?:.+?)\$(\w+)/', $line, $matches)) {
+                    $propertyName = $matches[1];
+
+                    if (in_array($propertyName, $columnsToReplace, true)) {
+                        continue;
+                    }
                 }
 
                 if (trim($line) === '*/') {
@@ -55,7 +66,7 @@ final class DocblockGenerator
                 }
                 $newLines[] = $line;
             }
-            $newDocComment = implode("\n", $newLines);
+            $newDocComment = implode($lineEnding, $newLines);
             $content = str_replace($docComment, $newDocComment, $content);
         } else {
             $newDocLines = ['/**'];
@@ -84,9 +95,11 @@ final class DocblockGenerator
             }
 
             array_splice($lines, $insertIndex, 0, $newDocLines);
-            $content = implode("\n", $lines);
+            $content = implode($lineEnding, $lines);
         }
 
-        file_put_contents($filePath, $content);
+        if (file_put_contents($filePath, $content) === false) {
+            throw new RuntimeException("Failed to update docblock in file: {$filePath}");
+        }
     }
 }
