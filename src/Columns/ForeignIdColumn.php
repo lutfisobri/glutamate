@@ -20,8 +20,10 @@ final class ForeignIdColumn extends Column
 
     protected ?string $referencesTable = null;
 
+    /** @var 'cascade'|'no action'|'restrict'|'set null' */
     protected string $onDeleteAction = 'restrict';
 
+    /** @var 'cascade'|'no action'|'restrict'|'set null' */
     protected string $onUpdateAction = 'cascade';
 
     public function constrained(?string $table = null): static
@@ -32,6 +34,9 @@ final class ForeignIdColumn extends Column
         return $this;
     }
 
+    /**
+     * @param  'cascade'|'no action'|'restrict'|'set null'  $action
+     */
     public function onDelete(string $action): static
     {
         $this->onDeleteAction = $action;
@@ -39,6 +44,9 @@ final class ForeignIdColumn extends Column
         return $this;
     }
 
+    /**
+     * @param  'cascade'|'no action'|'restrict'|'set null'  $action
+     */
     public function onUpdate(string $action): static
     {
         $this->onUpdateAction = $action;
@@ -56,11 +64,17 @@ final class ForeignIdColumn extends Column
         return $this->referencesTable;
     }
 
+    /**
+     * @return 'cascade'|'no action'|'restrict'|'set null'
+     */
     public function getOnDelete(): string
     {
         return $this->onDeleteAction;
     }
 
+    /**
+     * @return 'cascade'|'no action'|'restrict'|'set null'
+     */
     public function getOnUpdate(): string
     {
         return $this->onUpdateAction;
