@@ -7,19 +7,19 @@ namespace Workbench\App\Models;
 use Glutamate\Columns\IdColumn;
 use Glutamate\Columns\IntColumn;
 use Glutamate\Columns\StringColumn;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Workbench\Database\Factories\UserFactory;
 
-#[Fillable(['name', 'email', 'age', 'password'])]
-#[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    protected $fillable = ['name', 'email', 'age', 'password'];
+
+    protected $hidden = ['password', 'remember_token'];
 
     protected function casts(): array
     {
