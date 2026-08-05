@@ -7,9 +7,22 @@ namespace Glutamate\Tests\Feature;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 
-it('runs sync, generating migration file and executing migrate', function () {
+$tempDirs = [];
+
+afterEach(function () use (&$tempDirs) {
+    foreach ($tempDirs as $dir) {
+        if (File::isDirectory($dir)) {
+            File::deleteDirectory($dir);
+        }
+    }
+    $tempDirs = [];
+});
+
+it('runs sync, generating migration file and executing migrate', function () use (&$tempDirs) {
     $tempEntitiesDir = sys_get_temp_dir().'/glutamate_entities_'.uniqid();
     $tempSnapshotsDir = sys_get_temp_dir().'/glutamate_snapshots_'.uniqid();
+    $tempDirs[] = $tempEntitiesDir;
+    $tempDirs[] = $tempSnapshotsDir;
 
     if (! is_dir($tempEntitiesDir)) {
         mkdir($tempEntitiesDir, 0755, true);
@@ -29,7 +42,7 @@ class TempProductSyncCommandEntity extends Model
 
     public static function name(): StringColumn
     {
-        return StringColumn::make();
+        return StringColumn::make()->as(__FUNCTION__);
     }
 }
 PHP;
@@ -46,6 +59,7 @@ PHP;
     ]);
 
     $migrationsDir = database_path('migrations/glutamate');
+    $tempDirs[] = $migrationsDir;
     File::deleteDirectory($migrationsDir);
 
     // Assert table does not exist
@@ -63,9 +77,4 @@ PHP;
     // Assert table was created (migrate was called)
     expect(Schema::hasTable('temp_products_sync_command'))->toBeTrue();
     expect(Schema::hasColumn('temp_products_sync_command', 'name'))->toBeTrue();
-
-    // Cleanup
-    File::deleteDirectory($tempEntitiesDir);
-    File::deleteDirectory($tempSnapshotsDir);
-    File::deleteDirectory($migrationsDir);
 });

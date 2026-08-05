@@ -7,9 +7,22 @@ namespace Glutamate\Tests\Feature;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 
-it('runs push applying schema directly to database without writing migrations', function () {
+$tempDirs = [];
+
+afterEach(function () use (&$tempDirs) {
+    foreach ($tempDirs as $dir) {
+        if (File::isDirectory($dir)) {
+            File::deleteDirectory($dir);
+        }
+    }
+    $tempDirs = [];
+});
+
+it('runs push applying schema directly to database without writing migrations', function () use (&$tempDirs) {
     $tempEntitiesDir = sys_get_temp_dir().'/glutamate_entities_'.uniqid();
     $tempSnapshotsDir = sys_get_temp_dir().'/glutamate_snapshots_'.uniqid();
+    $tempDirs[] = $tempEntitiesDir;
+    $tempDirs[] = $tempSnapshotsDir;
 
     if (! is_dir($tempEntitiesDir)) {
         mkdir($tempEntitiesDir, 0755, true);
@@ -29,7 +42,7 @@ class TempProductPushEntity extends Model
 
     public static function name(): StringColumn
     {
-        return StringColumn::make();
+        return StringColumn::make()->as(__FUNCTION__);
     }
 }
 PHP;
@@ -46,6 +59,7 @@ PHP;
     ]);
 
     $migrationsDir = database_path('migrations/glutamate');
+    $tempDirs[] = $migrationsDir;
     File::deleteDirectory($migrationsDir);
 
     // Assert table does not exist
@@ -66,8 +80,4 @@ PHP;
     // Assert snapshot file exists
     $snapshotFile = $tempSnapshotsDir.'/Glutamate.Tests.Feature.TempEntitiesPush.TempProductPushEntity.json';
     expect(file_exists($snapshotFile))->toBeTrue();
-
-    // Cleanup
-    File::deleteDirectory($tempEntitiesDir);
-    File::deleteDirectory($tempSnapshotsDir);
 });

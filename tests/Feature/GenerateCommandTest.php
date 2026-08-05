@@ -8,9 +8,22 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 
-it('runs dry-run without writing any files to disk', function () {
+$tempDirs = [];
+
+afterEach(function () use (&$tempDirs) {
+    foreach ($tempDirs as $dir) {
+        if (File::isDirectory($dir)) {
+            File::deleteDirectory($dir);
+        }
+    }
+    $tempDirs = [];
+});
+
+it('runs dry-run without writing any files to disk', function () use (&$tempDirs) {
     $tempEntitiesDir = sys_get_temp_dir().'/glutamate_entities_'.uniqid();
     $tempSnapshotsDir = sys_get_temp_dir().'/glutamate_snapshots_'.uniqid();
+    $tempDirs[] = $tempEntitiesDir;
+    $tempDirs[] = $tempSnapshotsDir;
 
     // Create temp entity folder
     if (! is_dir($tempEntitiesDir)) {
@@ -31,7 +44,7 @@ class TempProductDryEntity extends Model
 
     public static function name(): StringColumn
     {
-        return StringColumn::make();
+        return StringColumn::make()->as(__FUNCTION__);
     }
 }
 PHP;
@@ -50,6 +63,7 @@ PHP;
 
     // Clean up migrations directory
     $migrationsDir = database_path('migrations/glutamate');
+    $tempDirs[] = $migrationsDir;
     File::deleteDirectory($migrationsDir);
 
     // Run --dry-run
@@ -61,15 +75,13 @@ PHP;
     // Assert no migration or snapshot files were written
     expect(is_dir($migrationsDir))->toBeFalse();
     expect(is_dir($tempSnapshotsDir))->toBeFalse();
-
-    // Cleanup
-    File::deleteDirectory($tempEntitiesDir);
-    File::deleteDirectory($tempSnapshotsDir);
 });
 
-it('runs sync, writes files, and is idempotent on subsequent runs', function () {
+it('runs sync, writes files, and is idempotent on subsequent runs', function () use (&$tempDirs) {
     $tempEntitiesDir = sys_get_temp_dir().'/glutamate_entities_'.uniqid();
     $tempSnapshotsDir = sys_get_temp_dir().'/glutamate_snapshots_'.uniqid();
+    $tempDirs[] = $tempEntitiesDir;
+    $tempDirs[] = $tempSnapshotsDir;
 
     if (! is_dir($tempEntitiesDir)) {
         mkdir($tempEntitiesDir, 0755, true);
@@ -89,7 +101,7 @@ class TempProductSyncEntity extends Model
 
     public static function name(): StringColumn
     {
-        return StringColumn::make();
+        return StringColumn::make()->as(__FUNCTION__);
     }
 }
 PHP;
@@ -106,6 +118,7 @@ PHP;
     ]);
 
     $migrationsDir = database_path('migrations/glutamate');
+    $tempDirs[] = $migrationsDir;
     File::deleteDirectory($migrationsDir);
 
     // 1. Run sync (first time)
@@ -130,16 +143,13 @@ PHP;
     // Verify no new migration file was written
     $migrationFilesAfter = File::files($migrationsDir);
     expect($migrationFilesAfter)->toHaveCount(1);
-
-    // Cleanup
-    File::deleteDirectory($tempEntitiesDir);
-    File::deleteDirectory($tempSnapshotsDir);
-    File::deleteDirectory($migrationsDir);
 });
 
-it('loads generated migrations automatically via Service Provider loadMigrationsFrom()', function () {
+it('loads generated migrations automatically via Service Provider loadMigrationsFrom()', function () use (&$tempDirs) {
     $tempEntitiesDir = sys_get_temp_dir().'/glutamate_entities_'.uniqid();
     $tempSnapshotsDir = sys_get_temp_dir().'/glutamate_snapshots_'.uniqid();
+    $tempDirs[] = $tempEntitiesDir;
+    $tempDirs[] = $tempSnapshotsDir;
 
     if (! is_dir($tempEntitiesDir)) {
         mkdir($tempEntitiesDir, 0755, true);
@@ -159,7 +169,7 @@ class TempProductProviderEntity extends Model
 
     public static function name(): StringColumn
     {
-        return StringColumn::make();
+        return StringColumn::make()->as(__FUNCTION__);
     }
 }
 PHP;
@@ -176,6 +186,7 @@ PHP;
     ]);
 
     $migrationsDir = database_path('migrations/glutamate');
+    $tempDirs[] = $migrationsDir;
     File::deleteDirectory($migrationsDir);
 
     // Run sync to generate the migration file into database_path('migrations/glutamate')
@@ -188,9 +199,4 @@ PHP;
     // Assert that the table is successfully created
     expect(Schema::hasTable('temp_products_provider'))->toBeTrue();
     expect(Schema::hasColumn('temp_products_provider', 'name'))->toBeTrue();
-
-    // Cleanup
-    File::deleteDirectory($tempEntitiesDir);
-    File::deleteDirectory($tempSnapshotsDir);
-    File::deleteDirectory($migrationsDir);
 });
