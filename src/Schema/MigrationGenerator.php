@@ -72,21 +72,39 @@ PHP;
 
         // UP: Changed columns
         foreach ($diff->changed as $name => $change) {
+            $fromSnapshot = $change['from'];
+
+            if ($fromSnapshot['type'] === 'ForeignIdColumn' && ($fromSnapshot['meta']['isConstrained'] ?? false)) {
+                $upLines[] = "            \$table->dropForeign(['{$name}']);";
+            }
             $upLines[] = '            '.self::renderColumnCall($name, $change['to'], true);
         }
 
         // UP: Removed columns
         foreach ($diff->removed as $name) {
+            $snapshot = $previous->columns[$name] ?? null;
+
+            if ($snapshot !== null && $snapshot['type'] === 'ForeignIdColumn' && ($snapshot['meta']['isConstrained'] ?? false)) {
+                $upLines[] = "            \$table->dropForeign(['{$name}']);";
+            }
             $upLines[] = "            \$table->dropColumn('{$name}');";
         }
 
         // DOWN: Drop added columns
         foreach ($diff->added as $name => $snapshot) {
+            if ($snapshot['type'] === 'ForeignIdColumn' && ($snapshot['meta']['isConstrained'] ?? false)) {
+                $downLines[] = "            \$table->dropForeign(['{$name}']);";
+            }
             $downLines[] = "            \$table->dropColumn('{$name}');";
         }
 
         // DOWN: Revert changed columns
         foreach ($diff->changed as $name => $change) {
+            $toSnapshot = $change['to'];
+
+            if ($toSnapshot['type'] === 'ForeignIdColumn' && ($toSnapshot['meta']['isConstrained'] ?? false)) {
+                $downLines[] = "            \$table->dropForeign(['{$name}']);";
+            }
             $downLines[] = '            '.self::renderColumnCall($name, $change['from'], true);
         }
 
@@ -151,13 +169,8 @@ PHP;
             'DateTimeColumn' => self::renderDateTimeCall($name, $snapshot),
             'ForeignIdColumn' => self::renderForeignIdCall($name, $snapshot),
             'IdColumn' => $name === 'id' ? '$table->id()' : "\$table->id('{$name}')",
-            'TimestampsColumn' => '$table->timestamps()',
             default => throw new LogicException("Unknown column type: {$snapshot['type']}"),
         };
-
-        if ($snapshot['type'] === 'TimestampsColumn') {
-            return $call.';';
-        }
 
         if ($snapshot['nullable']) {
             $call .= '->nullable()';

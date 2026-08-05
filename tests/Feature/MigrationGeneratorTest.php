@@ -172,3 +172,83 @@ it('generates text column calls in migration', function () {
 
     expect($code)->toContain("\$table->text('body')->nullable();");
 });
+
+it('generates dropForeign when dropping constrained foreign keys', function () {
+    $previous = new SchemaSnapshot(
+        modelClass: 'App\\Entities\\Post',
+        table: 'test_generator_posts_fk',
+        columns: [
+            'user_id' => [
+                'type' => 'ForeignIdColumn',
+                'nullable' => false,
+                'hasDefault' => false,
+                'default' => null,
+                'unique' => false,
+                'index' => false,
+                'meta' => [
+                    'isConstrained' => true,
+                    'referencesTable' => 'users',
+                    'onDelete' => 'cascade',
+                    'onUpdate' => 'cascade',
+                ],
+            ],
+        ],
+    );
+
+    $current = new SchemaSnapshot(
+        modelClass: 'App\\Entities\\Post',
+        table: 'test_generator_posts_fk',
+        columns: [],
+    );
+
+    $diff = SchemaDiffer::diff($previous, $current);
+    $code = MigrationGenerator::generate('App\\Entities\\Post', $previous, $current, $diff);
+
+    expect($code)->toContain("\$table->dropForeign(['user_id']);");
+    expect($code)->toContain("\$table->dropColumn('user_id');");
+});
+
+it('generates dropForeign when changing constrained foreign keys', function () {
+    $previous = new SchemaSnapshot(
+        modelClass: 'App\\Entities\\Post',
+        table: 'test_generator_posts_fk',
+        columns: [
+            'user_id' => [
+                'type' => 'ForeignIdColumn',
+                'nullable' => false,
+                'hasDefault' => false,
+                'default' => null,
+                'unique' => false,
+                'index' => false,
+                'meta' => [
+                    'isConstrained' => true,
+                    'referencesTable' => 'users',
+                    'onDelete' => 'cascade',
+                    'onUpdate' => 'cascade',
+                ],
+            ],
+        ],
+    );
+
+    $current = new SchemaSnapshot(
+        modelClass: 'App\\Entities\\Post',
+        table: 'test_generator_posts_fk',
+        columns: [
+            'user_id' => [
+                'type' => 'IntColumn',
+                'nullable' => false,
+                'hasDefault' => false,
+                'default' => null,
+                'unique' => false,
+                'index' => false,
+                'meta' => [],
+            ],
+        ],
+    );
+
+    $diff = SchemaDiffer::diff($previous, $current);
+    $code = MigrationGenerator::generate('App\\Entities\\Post', $previous, $current, $diff);
+
+    expect($code)->toContain("\$table->dropForeign(['user_id']);");
+    expect($code)->toContain("\$table->integer('user_id')->change();");
+});
