@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-arch()->preset()->php()->ignoring('debug_backtrace');
+arch()->preset()->php()->ignoring(['debug_backtrace', 'tempnam', 'var_export']);
 
 arch()->preset()->security();
 
