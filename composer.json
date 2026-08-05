@@ -91,10 +91,12 @@
         "laravel": {
             "providers": [
                 "Glutamate\\GlutamateServiceProvider"
-            ],
-            "aliases": {
-                "Glutamate": "Glutamate\\Facades\\Glutamate"
-            }
+            ]
+        },
+        "phpstan": {
+            "includes": [
+                "rules.neon"
+            ]
         }
     },
     "config": {

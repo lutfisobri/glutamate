@@ -29,7 +29,7 @@ return [
     | Snapshot Path
     |--------------------------------------------------------------------------
     |
-    | The directory path where the JSON snapshot of Entity classes is saved.
+    | The directory path where the JSON snapshot of Model classes is saved.
     |
     */
     'snapshot_path' => storage_path('framework/glutamate/snapshots'),
