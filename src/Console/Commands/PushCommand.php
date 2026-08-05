@@ -11,15 +11,11 @@ use Glutamate\Schema\SchemaSnapshot;
 use Glutamate\Schema\SnapshotStore;
 use Glutamate\SchemaCompiler;
 use Illuminate\Console\Command;
-use Illuminate\Database\Eloquent\Model;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use RecursiveRegexIterator;
-use ReflectionClass;
-use RegexIterator;
 
 final class PushCommand extends Command
 {
+    use DiscoversEntities;
+
     /**
      * The name and signature of the console command.
      */
@@ -40,7 +36,7 @@ final class PushCommand extends Command
         $snapshotPath = config('glutamate.snapshot_path', storage_path('framework/glutamate/snapshots'));
 
         $store = new SnapshotStore($snapshotPath);
-        $entities = self::discoverEntities($modelsPath, $modelsNamespace);
+        $entities = $this->discoverEntities($modelsPath, $modelsNamespace);
 
         if (empty($entities)) {
             $this->info('No models found.');
@@ -51,10 +47,10 @@ final class PushCommand extends Command
         $anyChange = false;
 
         foreach ($entities as $modelClass) {
-            DocblockGenerator::update($modelClass, SchemaCompiler::compile($modelClass));
-
             $current = SchemaSnapshot::fromModel($modelClass);
             $previous = $store->load($modelClass);
+            $previousColumnNames = $previous !== null ? array_keys($previous->columns) : [];
+
             $diff = SchemaDiffer::diff($previous, $current);
 
             if ($diff->isEmpty()) {
@@ -84,6 +80,7 @@ final class PushCommand extends Command
                 @unlink($tempFile);
             }
 
+            DocblockGenerator::update($modelClass, SchemaCompiler::compile($modelClass), $previousColumnNames);
             $store->save($current);
             $this->info("Pushed: schema for {$modelClass} applied directly to the database.");
         }
@@ -93,52 +90,5 @@ final class PushCommand extends Command
         }
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Discover all entity classes in the configured directory.
-     *
-     * @return class-string[]
-     */
-    private static function discoverEntities(string $path, string $namespace): array
-    {
-        if (! is_dir($path)) {
-            return [];
-        }
-
-        $directory = new RecursiveDirectoryIterator($path);
-        $iterator = new RecursiveIteratorIterator($directory);
-        $regex = new RegexIterator($iterator, '/^.+\.php$/i', RecursiveRegexIterator::GET_MATCH);
-
-        $classes = [];
-        foreach ($regex as $fileInfo) {
-            $filePath = is_array($fileInfo) ? ($fileInfo[0] ?? '') : $fileInfo;
-
-            if (! is_string($filePath) || $filePath === '') {
-                continue;
-            }
-
-            $relativePath = str_replace(
-                [rtrim($path, '/\\').DIRECTORY_SEPARATOR, '.php'],
-                ['', ''],
-                $filePath,
-            );
-
-            $className = $namespace.'\\'.str_replace(DIRECTORY_SEPARATOR, '\\', $relativePath);
-
-            if (class_exists($className)) {
-                $isModel = is_subclass_of($className, Model::class);
-
-                if ($isModel) {
-                    $ref = new ReflectionClass($className);
-
-                    if (! $ref->isAbstract()) {
-                        $classes[] = $className;
-                    }
-                }
-            }
-        }
-
-        return $classes;
     }
 }

@@ -12,14 +12,11 @@ use Glutamate\Schema\SnapshotStore;
 use Glutamate\SchemaCompiler;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use RecursiveRegexIterator;
-use ReflectionClass;
-use RegexIterator;
 
 final class GenerateCommand extends Command
 {
+    use DiscoversEntities;
+
     /**
      * The name and signature of the console command.
      */
@@ -40,7 +37,7 @@ final class GenerateCommand extends Command
         $snapshotPath = config('glutamate.snapshot_path', storage_path('framework/glutamate/snapshots'));
 
         $store = new SnapshotStore($snapshotPath);
-        $entities = self::discoverEntities($modelsPath, $modelsNamespace);
+        $entities = $this->discoverEntities($modelsPath, $modelsNamespace);
 
         if (empty($entities)) {
             $this->info('No models found.');
@@ -51,12 +48,10 @@ final class GenerateCommand extends Command
         $anyChange = false;
 
         foreach ($entities as $modelClass) {
-            if (! $this->option('dry-run')) {
-                DocblockGenerator::update($modelClass, SchemaCompiler::compile($modelClass));
-            }
-
             $current = SchemaSnapshot::fromModel($modelClass);
             $previous = $store->load($modelClass);
+            $previousColumnNames = $previous !== null ? array_keys($previous->columns) : [];
+
             $diff = SchemaDiffer::diff($previous, $current);
 
             if ($diff->isEmpty()) {
@@ -80,10 +75,20 @@ final class GenerateCommand extends Command
             $path = database_path('migrations/glutamate/'.$filename);
 
             if (! is_dir(dirname($path))) {
-                mkdir(dirname($path), 0755, true);
+                if (! mkdir(dirname($path), 0755, true) && ! is_dir(dirname($path))) {
+                    $this->error('Failed to create directory: '.dirname($path));
+
+                    return self::FAILURE;
+                }
             }
 
-            file_put_contents($path, $code);
+            if (file_put_contents($path, $code) === false) {
+                $this->error("Failed to write migration file: {$path}");
+
+                return self::FAILURE;
+            }
+
+            DocblockGenerator::update($modelClass, SchemaCompiler::compile($modelClass), $previousColumnNames);
             $store->save($current);
             $this->info("Generated: {$path}");
         }
@@ -93,53 +98,6 @@ final class GenerateCommand extends Command
         }
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Discover all entity classes in the configured directory.
-     *
-     * @return class-string[]
-     */
-    private static function discoverEntities(string $path, string $namespace): array
-    {
-        if (! is_dir($path)) {
-            return [];
-        }
-
-        $directory = new RecursiveDirectoryIterator($path);
-        $iterator = new RecursiveIteratorIterator($directory);
-        $regex = new RegexIterator($iterator, '/^.+\.php$/i', RecursiveRegexIterator::GET_MATCH);
-
-        $classes = [];
-        foreach ($regex as $fileInfo) {
-            $filePath = is_array($fileInfo) ? ($fileInfo[0] ?? '') : $fileInfo;
-
-            if (! is_string($filePath) || $filePath === '') {
-                continue;
-            }
-
-            $relativePath = str_replace(
-                [rtrim($path, '/\\').DIRECTORY_SEPARATOR, '.php'],
-                ['', ''],
-                $filePath,
-            );
-
-            $className = $namespace.'\\'.str_replace(DIRECTORY_SEPARATOR, '\\', $relativePath);
-
-            if (class_exists($className)) {
-                $isModel = is_subclass_of($className, Model::class);
-
-                if ($isModel) {
-                    $ref = new ReflectionClass($className);
-
-                    if (! $ref->isAbstract()) {
-                        $classes[] = $className;
-                    }
-                }
-            }
-        }
-
-        return $classes;
     }
 
     /**
